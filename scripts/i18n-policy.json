@@ -15,7 +15,8 @@
     "architecture.module.plugin.language",
     "architecture.module.input.language",
     "architecture.module.core.language",
-    "architecture.module.ui.language"
+    "architecture.module.ui.language",
+    "credits.uiverse.name"
   ],
   "layoutBudgets": [
     { "keyPattern": "^architecture\\.node\\.", "splitAt": " (", "maxUnitsPerLine": 22 },

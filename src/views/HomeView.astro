@@ -1,6 +1,7 @@
 ---
 // Edited by: OpenAI-Codex_Responsible: Website
 import Base from "../layouts/Base.astro";
+import CommunityLinks from "../components/CommunityLinks.astro";
 import Credits from "../components/Credits.astro";
 import StatusBanner from "../components/StatusBanner.astro";
 import { t, localePath, type Locale } from "../i18n";
@@ -60,5 +61,6 @@ const links = [
       ))}
     </div>
   </section>
+  <CommunityLinks locale={locale} />
   <Credits locale={locale} />
 </Base>

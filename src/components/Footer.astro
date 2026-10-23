@@ -1,6 +1,7 @@
 ---
 // Edited by: OpenAI-Codex_Responsible: Website
 import { localePath, t, type Locale } from "../i18n";
+import { communityLinks } from "../config/links";
 
 interface Props {
   locale: Locale;
@@ -16,5 +17,7 @@ const { locale } = Astro.props;
   <p>{t("footer.notAffiliated", locale)}</p>
   <nav aria-label={t("footer.navLabel", locale)}>
     <a href={localePath(locale, "#credits")}>{t("footer.creditsLink", locale)}</a>
+    <a href={communityLinks.github} rel="noopener">{t("community.githubLabel", locale)}</a>
+    <a href={communityLinks.discord} rel="noopener">{t("community.discordLabel", locale)}</a>
   </nav>
 </footer>

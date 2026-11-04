@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -32,8 +33,8 @@ internal sealed class UiPipeClient
                 await pipe.ConnectAsync(1000, cancellation);
                 if (!VerifyServer(pipe)) throw new UnauthorizedAccessException("Untrusted UI pipe server.");
                 string helloId = "u-1";
-                await SendAsync(pipe, new { type = "hello", version = "1.2", id = helloId,
-                    timestamp = QpcNanoseconds(), payload = new { supported_versions = new[] { "1.2", "1.1", "1.0" } } }, cancellation);
+                await SendAsync(pipe, new { type = "hello", version = "1.3", id = helloId,
+                    timestamp = QpcNanoseconds(), payload = new { supported_versions = new[] { "1.3", "1.2", "1.1", "1.0" } } }, cancellation);
                 UiStatusProtocol.ValidateHelloAck(await ReadAsync(pipe, cancellation), helloId);
                 while (!cancellation.IsCancellationRequested)
                 {
@@ -94,15 +95,16 @@ internal sealed class UiPipeClient
         return new string(buffer, 0, (int)length).ToUpperInvariant();
     }
 
-    private static string QpcNanoseconds()
+    internal static ulong QpcNanosecondsValue()
     {
         long ticks = Stopwatch.GetTimestamp();
         long frequency = Stopwatch.Frequency;
-        ulong seconds = (ulong)(ticks / frequency);
-        ulong remainder = (ulong)(ticks % frequency);
-        return checked(seconds * 1_000_000_000UL + remainder * 1_000_000_000UL / (ulong)frequency)
-            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (ticks < 0 || frequency <= 0) throw new InvalidOperationException("Invalid QPC clock.");
+        return checked((ulong)(((UInt128)(ulong)ticks * 1_000_000_000UL) / (ulong)frequency));
     }
+
+    private static string QpcNanoseconds() =>
+        QpcNanosecondsValue().ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private static async Task SendAsync(Stream stream, object message, CancellationToken cancellation)
     {

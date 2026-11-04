@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- Edited by: OpenAI-Codex_Responsible: Source_Code -->
+  <!-- Edited by: OpenAI-Codex_Source_Code -->
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
@@ -19,7 +20,8 @@
   <data name="Speed" xml:space="preserve"><value>Speed</value></data>
   <data name="SpeedLimit" xml:space="preserve"><value>Speed limit</value></data>
   <data name="DistanceRemaining" xml:space="preserve"><value>Distance remaining</value></data>
-  <data name="Eta" xml:space="preserve"><value>ETA</value></data>
+  <data name="Eta" xml:space="preserve"><value>Navigation time remaining</value></data>
+  <data name="NavigationTimeFormat" xml:space="preserve"><value>{0:0}:{1:00}:{2:00}</value></data>
   <data name="Kmh" xml:space="preserve"><value>km/h</value></data>
   <data name="ConnectionChecklist" xml:space="preserve"><value>Connection checklist</value></data>
   <data name="Game" xml:space="preserve"><value>Game</value></data>
@@ -96,7 +98,7 @@
   <data name="StatusCopied" xml:space="preserve"><value>Status copied.</value></data>
   <data name="StatusCopyFailed" xml:space="preserve"><value>The clipboard is busy. Try copying the status again.</value></data>
   <data name="NotProvided" xml:space="preserve"><value>Not provided</value></data>
-  <data name="EtaUnavailableDetail" xml:space="preserve"><value>Not included in current telemetry.</value></data>
+  <data name="EtaUnavailableDetail" xml:space="preserve"><value>Hours:minutes:seconds from navigation, not a clock arrival time.</value></data>
   <data name="ConnectorInstallProgress" xml:space="preserve"><value>Installing game connector</value></data>
   <data name="ActivityRetention" xml:space="preserve"><value>Activity stays in memory only until the app closes.</value></data>
   <data name="ActivityServiceConnected" xml:space="preserve"><value>UI status service connected.</value></data>

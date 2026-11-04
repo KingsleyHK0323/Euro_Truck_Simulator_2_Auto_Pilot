@@ -1,6 +1,7 @@
 """Read the v1 native telemetry mapping without creating a missing mapping.
 
 Edited by: OpenAI-Codex_Responsible: Source_Code
+Edited by: OpenAI-Codex_Source_Code
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ class TelemetrySummary:
     navigation_distance_m: float | None
     telemetry_age_s: float | None
     paused: bool | None
+    navigation_time_s: float | None = None
+    snapshot_timestamp_ns: int | None = None
 
 
 def parse_snapshot(data: bytes, now_ns: int) -> TelemetrySummary:
@@ -50,12 +53,20 @@ def parse_snapshot(data: bytes, now_ns: int) -> TelemetrySummary:
     paused_byte = data[32]
     if flags & 1 and paused_byte not in (0, 1):
         raise ValueError("invalid paused flag")
+    navigation_time_s = None
+    if flags & (1 << 11):
+        candidate = struct.unpack_from("<d", data, 216)[0]
+        if math.isfinite(candidate) and candidate >= 0:
+            navigation_time_s = candidate
+
     return TelemetrySummary(
         speed_mps=value(1, 48),
         speed_limit_mps=value(12, 224),
         navigation_distance_m=value(10, 208),
         telemetry_age_s=(now_ns - timestamp) / 1_000_000_000,
         paused=bool(paused_byte) if flags & 1 else None,
+        navigation_time_s=navigation_time_s,
+        snapshot_timestamp_ns=timestamp,
     )
 
 

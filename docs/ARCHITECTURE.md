@@ -32,7 +32,7 @@ flowchart LR
 | [perception v1](../shared/ipc/perception.v1.md) | Shared memory | ui → python | 43,264-byte mapping with a 64-byte seqlock header and 160 × 90 RGB24 image; WPF bridges gameframe or GDI capture; prototype detections do not authorize control |
 | [physical input v1](../shared/ipc/physical-input.v1.md) | Named pipe | ui → native/input | 24-byte Raw Input state frames at 20 Hz; native receive-time expiry fails closed after 250 ms |
 | [control v1](../shared/ipc/control.v1.md) | Named pipe | python → input commands; input → python status | Overlapped I/O; 64-byte v1.0 command prefix, v1.1 safety-claim extension, 64-byte v1.0 status prefix and v1.1 capability extension |
-| [ui v1](../shared/ipc/ui.v1.md) | Named pipe | python ↔ ui | JSON status with state_revision; v1.1 adds optional perception observations; [JSON Schema](../shared/ipc/ui.v1.schema.json) |
+| [ui v1](../shared/ipc/ui.v1.md) | Named pipe | python ↔ ui | JSON status with state_revision; v1.3 adds optional timestamped navigation duration while retaining v1.1 perception and v1.2 native-control observations; [JSON Schema](../shared/ipc/ui.v1.schema.json) |
 
 The [shared contract overview](../shared/README.md) defines versioning and common units. Channel specifications define field layout, update behavior, and safety rules. Native D3D11 capture, the GDI fallback, and the lane detector remain development prototypes; front-object detection and physical-input coverage require validation before control is enabled.
 
@@ -49,3 +49,4 @@ The [shared contract overview](../shared/README.md) defines versioning and commo
 
 <!-- Edited by: Anthropic-Claude_Code -->
 <!-- Edited by: OpenAI-Codex_Responsible: Source_Code -->
+<!-- Edited by: OpenAI-Codex_Source_Code -->

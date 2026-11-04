@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.IO.Compression;
 using System.IO;
 using System.Security.Cryptography;
@@ -11,7 +12,7 @@ internal sealed record ConnectorReleaseAsset(string Version, Uri DownloadUri, st
 
 internal static class ConnectorReleaseAssetSelector
 {
-    private const string RepositoryPath = "/SpaceSquare640/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/";
+    private const string RepositoryPath = "/KingsleyHK0323/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/";
     private static readonly Regex TagPattern = new("^v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?)$", RegexOptions.CultureInvariant);
     private static readonly Regex DigestPattern = new("^sha256:(?<digest>[0-9a-fA-F]{64})$", RegexOptions.CultureInvariant);
     public static ConnectorReleaseAsset SelectLatest(string releasesJson)

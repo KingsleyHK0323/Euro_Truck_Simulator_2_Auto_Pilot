@@ -8,6 +8,7 @@
         FontFamily="Segoe UI" FontSize="15" UseLayoutRounding="True"
         PreviewKeyDown="Window_PreviewKeyDown" Activated="Window_Activated">
   <!-- Edited by: OpenAI-Codex_Responsible: Source_Code -->
+  <!-- Edited by: OpenAI-Codex_Source_Code -->
   <Window.Resources>
     <Style x:Key="NavButton" TargetType="Button">
       <Setter Property="Height" Value="44"/>
@@ -80,7 +81,7 @@
                   <StackPanel Margin="0,0,0,22"><TextBlock Text="{x:Static res:Strings.Speed}" Style="{StaticResource MutedText}"/><TextBlock x:Name="SpeedValue" Text="--" FontSize="32" FontWeight="SemiBold"/><TextBlock Text="{x:Static res:Strings.Kmh}" Style="{StaticResource MutedText}"/></StackPanel>
                   <StackPanel Grid.Column="1"><TextBlock Text="{x:Static res:Strings.SpeedLimit}" Style="{StaticResource MutedText}"/><TextBlock x:Name="SpeedLimitValue" Text="--" FontSize="32" FontWeight="SemiBold"/><TextBlock Text="{x:Static res:Strings.Kmh}" Style="{StaticResource MutedText}"/></StackPanel>
                   <StackPanel Grid.Row="1"><TextBlock Text="{x:Static res:Strings.DistanceRemaining}" Style="{StaticResource MutedText}"/><TextBlock x:Name="DistanceValue" Text="--" FontSize="28" FontWeight="SemiBold"/></StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="1"><TextBlock Text="{x:Static res:Strings.Eta}" Style="{StaticResource MutedText}"/><TextBlock x:Name="EtaValue" Text="{x:Static res:Strings.NotProvided}" FontSize="20" FontWeight="SemiBold"/><TextBlock Text="{x:Static res:Strings.EtaUnavailableDetail}" Style="{StaticResource MutedText}"/></StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="1"><TextBlock Text="{x:Static res:Strings.Eta}" Style="{StaticResource MutedText}"/><TextBlock x:Name="EtaValue" Text="{x:Static res:Strings.Unavailable}" FontSize="20" FontWeight="SemiBold"/><TextBlock Text="{x:Static res:Strings.EtaUnavailableDetail}" Style="{StaticResource MutedText}"/></StackPanel>
                 </Grid>
               </StackPanel>
             </Border>

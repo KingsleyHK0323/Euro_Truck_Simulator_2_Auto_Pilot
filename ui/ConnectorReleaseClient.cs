@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -12,7 +13,7 @@ internal sealed record DownloadedConnectorPackage(string Version, string Sha256,
 
 internal sealed class ConnectorReleaseClient
 {
-    private const string ReleasesUrl = "https://api.github.com/repos/SpaceSquare640/Euro_Truck_Simulator_2_Auto_Pilot/releases?per_page=30";
+    private const string ReleasesUrl = "https://api.github.com/repos/KingsleyHK0323/Euro_Truck_Simulator_2_Auto_Pilot/releases?per_page=30";
     private const int MaximumMetadataBytes = 2 * 1024 * 1024;
     private static readonly HttpClient DefaultClient = CreateClient();
     private readonly HttpClient _client;

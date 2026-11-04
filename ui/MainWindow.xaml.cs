@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -12,6 +13,7 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using ETS2AP.Ui.Resources;
 using Microsoft.Win32;
 
@@ -21,6 +23,8 @@ public partial class MainWindow : Window
 {
     private readonly UiPreferences _preferences = UiPreferences.Load();
     private readonly NavigationState _navigation = new();
+    private readonly NavigationTimeDisplay _navigationTime = new();
+    private readonly DispatcherTimer _navigationExpiryTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly CancellationTokenSource _serviceCancellation = new();
     private readonly PythonServiceRestartPolicy _serviceRestartPolicy = new();
     private readonly ObservableCollection<ActivityItem> _activityEntries = new();
@@ -42,6 +46,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _navigationExpiryTimer.Tick += NavigationExpiryTimer_Tick;
+        _navigationExpiryTimer.Start();
         ActivityList.ItemsSource = _activityEntries;
         RecentActivityList.ItemsSource = _recentActivityEntries;
         ThemePicker.SelectedIndex = (int)_preferences.Theme;
@@ -116,6 +122,8 @@ public partial class MainWindow : Window
     private void Window_Closed(object? sender, EventArgs e)
     {
         _isClosing = true;
+        _navigationExpiryTimer.Stop();
+        _navigationExpiryTimer.Tick -= NavigationExpiryTimer_Tick;
         _perceptionCapture?.Dispose();
         _perceptionCapture = null;
         _serviceCancellation.Cancel();
@@ -403,6 +411,8 @@ public partial class MainWindow : Window
     private void ApplyStatus(UiStatus? status)
     {
         _latestStatus = status;
+        _navigationTime.SetStatus(status);
+        RefreshNavigationTime();
         if (status is null)
         {
             RecordStatus(null, telemetryFresh: false);
@@ -445,6 +455,20 @@ public partial class MainWindow : Window
         ControlCheck.Text = DescribeNativeControlStatus(status.Control);
     }
 
+    private void NavigationExpiryTimer_Tick(object? sender, EventArgs e) => RefreshNavigationTime();
+
+    private void RefreshNavigationTime()
+    {
+        try
+        {
+            EtaValue.Text = _navigationTime.Render(UiPipeClient.QpcNanosecondsValue(),
+                Strings.NavigationTimeFormat, CultureInfo.CurrentCulture) ?? Strings.Unavailable;
+        }
+        catch (Exception error) when (error is OverflowException or InvalidOperationException or FormatException)
+        {
+            EtaValue.Text = Strings.Unavailable;
+        }
+    }
     private static string DescribeNativeControlStatus(NativeControlStatus? status)
     {
         if (status is null) return Strings.NotProvided;

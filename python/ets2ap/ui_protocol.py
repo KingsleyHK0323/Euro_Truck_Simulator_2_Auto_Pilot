@@ -1,6 +1,7 @@
 """Bounded UI v1 JSON framing and message validation.
 
 Edited by: OpenAI-Codex_Responsible: Source_Code
+Edited by: OpenAI-Codex_Source_Code
 """
 
 from __future__ import annotations
@@ -12,8 +13,8 @@ import struct
 import time
 
 MAX_FRAME = 65_536
-VERSION = "1.2"
-SUPPORTED_VERSIONS = ("1.2", "1.1", "1.0")
+VERSION = "1.3"
+SUPPORTED_VERSIONS = ("1.3", "1.2", "1.1", "1.0")
 _ID = re.compile(r"^[up]-[A-Za-z0-9._-]{1,62}$", re.ASCII)
 _TIME = re.compile(r"^(0|[1-9][0-9]*)$", re.ASCII)
 _VERSION = re.compile(r"^[0-9]+\.[0-9]+$", re.ASCII)

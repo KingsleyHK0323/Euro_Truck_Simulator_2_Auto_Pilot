@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.Globalization;
 using System.Resources;
 
@@ -24,6 +25,7 @@ public static class Strings
     public static string SpeedLimit => Get(nameof(SpeedLimit));
     public static string DistanceRemaining => Get(nameof(DistanceRemaining));
     public static string Eta => Get(nameof(Eta));
+    public static string NavigationTimeFormat => Get(nameof(NavigationTimeFormat));
     public static string Kmh => Get(nameof(Kmh));
     public static string ConnectionChecklist => Get(nameof(ConnectionChecklist));
     public static string Game => Get(nameof(Game));

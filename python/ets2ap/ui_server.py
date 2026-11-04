@@ -1,12 +1,14 @@
 """Development UI status server for the Windows UI v1 named pipe.
 
 Edited by: OpenAI-Codex_Responsible: Source_Code
+Edited by: OpenAI-Codex_Source_Code
 """
 
 from __future__ import annotations
 
 import argparse
 import ctypes
+import math
 import msvcrt
 import os
 import struct
@@ -21,7 +23,7 @@ from .driver_runtime import DriverAssistRuntime
 from .telemetry import TelemetryReader, TelemetrySummary
 from .perception_protocol import MAX_FRAME_AGE_NS, PerceptionFrame
 from .perception import PerceptionReader
-from .ui_protocol import MAX_FRAME, SUPPORTED_VERSIONS, frame, message, parse
+from .ui_protocol import MAX_FRAME, SUPPORTED_VERSIONS, VERSION, frame, message, parse
 
 PIPE_NAME = r"\\.\pipe\ETS2AP_UI_v1"
 ERROR_IO_PENDING = 997
@@ -39,6 +41,8 @@ PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
 TOKEN_QUERY = 0x0008
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 CONTROL_NEUTRAL_HEARTBEAT_INTERVAL_S = 0.05
+MAX_NAVIGATION_AGE_NS = 250_000_000
+UI_V13_STATUS_INTERVAL_NS = 50_000_000
 
 
 class OVERLAPPED(ctypes.Structure):
@@ -399,7 +403,8 @@ def control_payload(status: ControlStatus | None, *, configured: bool, now_ns: i
 
 def status_payload(summary: TelemetrySummary | None, revision: int,
                    perception: dict | None = None,
-                   control: dict | None = None) -> dict:
+                   control: dict | None = None, *,
+                   version: str = VERSION, now_ns: int | None = None) -> dict:
     if summary is None or summary.speed_mps is None or summary.paused is None:
         error = "TELEMETRY_UNAVAILABLE"
     elif summary.telemetry_age_s is None or summary.telemetry_age_s > 0.25:
@@ -411,12 +416,28 @@ def status_payload(summary: TelemetrySummary | None, revision: int,
                           "speed_limit_mps": summary.speed_limit_mps if summary else None,
                           "navigation_distance_m": summary.navigation_distance_m if summary else None,
                           "telemetry_age_s": summary.telemetry_age_s if summary else None}}
-    if perception is not None:
+    if perception is not None and version in ("1.1", "1.2", "1.3"):
         payload["perception"] = perception
-    if control is not None:
+    if control is not None and version in ("1.2", "1.3"):
         payload["control"] = control
+    if version == "1.3":
+        navigation_time = summary.navigation_time_s if summary else None
+        sample_ns = summary.snapshot_timestamp_ns if summary else None
+        current_ns = time.perf_counter_ns() if now_ns is None else now_ns
+        try:
+            valid_time = (isinstance(navigation_time, (int, float)) and
+                          not isinstance(navigation_time, bool) and
+                          math.isfinite(navigation_time) and navigation_time >= 0)
+        except OverflowError:
+            valid_time = False
+        valid_sample = (isinstance(sample_ns, int) and not isinstance(sample_ns, bool) and
+                        isinstance(current_ns, int) and not isinstance(current_ns, bool) and
+                        0 < sample_ns <= current_ns <= (1 << 64) - 1 and
+                        current_ns - sample_ns <= MAX_NAVIGATION_AGE_NS)
+        fresh = valid_time and valid_sample
+        payload["telemetry"]["navigation_time_s"] = navigation_time if fresh else None
+        payload["telemetry"]["navigation_time_sample_timestamp_ns"] = str(sample_ns) if fresh else None
     return payload
-
 
 def serve(trusted_ui_image: str, trusted_control_server_image: str | None = None) -> None:
     pipe = WinPipe(trusted_ui_image)
@@ -455,6 +476,7 @@ def serve(trusted_ui_image: str, trusted_control_server_image: str | None = None
                 last_state = None
                 revision = 0
                 latest_frame = None
+                last_status_event_ns = None
                 seen_requests = {hello["id"]}
                 while True:
                     summary = reader.read()
@@ -468,38 +490,48 @@ def serve(trusted_ui_image: str, trusted_control_server_image: str | None = None
                         control_session.disengage(driver_tick.safety_flags)
                     perception = (perception_payload(
                         latest_frame, now_ns, driver_tick.lane_confidence, driver_tick.front_clear)
-                        if selected_version in ("1.1", "1.2") else None)
+                        if selected_version in ("1.1", "1.2", "1.3") else None)
                     control = control_payload(
                         native_status,
                         configured=control_session is not None,
                         now_ns=now_ns,
-                    ) if selected_version == "1.2" else None
-                    candidate = status_payload(summary, revision, perception, control)
+                    ) if selected_version in ("1.2", "1.3") else None
+                    candidate_now_ns = time.perf_counter_ns()
+                    candidate = status_payload(summary, revision, perception, control,
+                                               version=selected_version, now_ns=candidate_now_ns)
                     state_key = (candidate["state"], candidate["error_code"])
                     if last_state is not None and state_key != last_state:
                         revision += 1
                     candidate["state_revision"] = revision
                     last_state = state_key
-                    counter += 1
-                    pipe.send(message("status", f"p-{counter + 1}", candidate,
-                                      version=selected_version))
-                    request = pipe.read_frame(250)
+                    if (selected_version != "1.3" or last_status_event_ns is None or
+                            candidate_now_ns < last_status_event_ns or
+                            candidate_now_ns - last_status_event_ns >= UI_V13_STATUS_INTERVAL_NS):
+                        counter += 1
+                        pipe.send(message("status", f"p-{counter + 1}", candidate,
+                                          version=selected_version))
+                        last_status_event_ns = time.perf_counter_ns()
+                    request = pipe.read_frame(50 if selected_version == "1.3" else 250)
                     if request is None:
                         continue
                     if not request["id"].startswith("u-") or request["id"] in seen_requests:
                         raise ValueError("invalid request envelope")
                     seen_requests.add(request["id"])
                     if request["version"].split(".")[0] != "1":
-                        pipe.send(message("error", request["id"], {"code": "UNSUPPORTED_VERSION"}))
+                        pipe.send(message("error", request["id"], {"code": "UNSUPPORTED_VERSION"}, version=selected_version))
                         raise ValueError("unsupported version")
                     kind = request["type"]
                     if kind == "get_status" and request["payload"] == {}:
-                        pipe.send(message("status", request["id"], candidate,
+                        response = status_payload(summary, revision, perception, control,
+                                                  version=selected_version, now_ns=time.perf_counter_ns())
+                        pipe.send(message("status", request["id"], response,
                                           version=selected_version))
                     elif kind == "disengage" and request["payload"] == {}:
                         if control_session is not None:
                             control_session.disengage()
-                        pipe.send(message("status", request["id"], candidate,
+                        response = status_payload(summary, revision, perception, control,
+                                                  version=selected_version, now_ns=time.perf_counter_ns())
+                        pipe.send(message("status", request["id"], response,
                                           version=selected_version))
                     elif kind == "engage":
                         if control_session is not None:
@@ -507,9 +539,9 @@ def serve(trusted_ui_image: str, trusted_control_server_image: str | None = None
                         requested_revision = request["payload"].get("state_revision")
                         code = ("CONTROL_UNAVAILABLE" if type(requested_revision) is int and requested_revision >= 0
                                 else "MALFORMED_MESSAGE")
-                        pipe.send(message("error", request["id"], {"code": code}))
+                        pipe.send(message("error", request["id"], {"code": code}, version=selected_version))
                     else:
-                        pipe.send(message("error", request["id"], {"code": "MALFORMED_MESSAGE"}))
+                        pipe.send(message("error", request["id"], {"code": "MALFORMED_MESSAGE"}, version=selected_version))
             except (EOFError, OSError, ValueError, TimeoutError):
                 pass
             finally:

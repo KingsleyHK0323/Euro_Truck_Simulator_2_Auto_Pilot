@@ -9,7 +9,7 @@ Status: v1.0 draft. This directory is the contract between the native, Python, a
 | Perception | ui | python | 43,264-byte Windows shared mapping; 64-byte v1.0 header and 160 × 90 RGB24 frame | [perception v1](ipc/perception.v1.md) |
 | Physical input | ui | native/input | Windows named pipe; 24-byte v1.0 state frames, 50 ms updates, 250 ms native receive expiry | [physical input v1](ipc/physical-input.v1.md) |
 | Control | python commands; native/input status | native/input commands; python status | Windows named pipe, overlapped I/O; v1.1 command claims and server capabilities | [control v1](ipc/control.v1.md) |
-| UI | python and ui | ui and python | Windows named pipe; v1.1 adds optional perception status; engage uses state_revision | [ui v1](ipc/ui.v1.md), [JSON Schema](ipc/ui.v1.schema.json) |
+| UI | python and ui | ui and python | Windows named pipe; v1.3 adds an optional navigation-duration snapshot; v1.1 perception and v1.2 native-control status remain compatible; engage uses state_revision | [ui v1](ipc/ui.v1.md), [JSON Schema](ipc/ui.v1.schema.json) |
 
 ## Common representation
 
@@ -40,3 +40,4 @@ To add a field:
 Python applies range and rate limits before sending control. native/input independently enforces them and immediately disengages on manual input, malformed commands, or command timeout as specified in [control v1](ipc/control.v1.md). Perception is an untrusted observation channel; its prototype detector results do not make control available. The UI displays status and requests actions; it never runs the control loop.
 
 <!-- Edited by: OpenAI-Codex_Responsible: Source_Code -->
+<!-- Edited by: OpenAI-Codex_Source_Code -->

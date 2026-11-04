@@ -1,4 +1,5 @@
 // Edited by: OpenAI-Codex_Responsible: Source_Code
+// Edited by: OpenAI-Codex_Source_Code
 using System.Collections;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -49,6 +50,9 @@ internal static class Program
             ("Preferences parsing and round trip", CheckPreferences),
             ("Navigation state and shortcuts", CheckNavigation),
             ("UI status protocol", CheckStatusProtocol),
+            ("UI navigation time and freshness", CheckNavigationTimeStatus),
+            ("UI QPC nanosecond clock", CheckUiQpcNanoseconds),
+            ("UI navigation version compatibility", CheckUiV13HelloAck),
             ("UI v1.2 handshake", CheckUiV12HelloAck),
             ("UI native control status", CheckNativeControlStatus),
             ("Raw input safety state", CheckRawInputSafetyState),
@@ -247,6 +251,109 @@ internal static class Program
         Require(withPerception.Control is null, "UI v1.1 must omit native control status.");
     }
 
+    private static void CheckNavigationTimeStatus()
+    {
+        const string valid = """{"type":"status","version":"1.3","id":"p-3","timestamp":"1100000000","payload":{"state":"fault","error_code":"CONTROL_UNAVAILABLE","state_revision":0,"telemetry":{"speed_mps":10,"speed_limit_mps":20,"navigation_distance_m":1250,"telemetry_age_s":0.1,"navigation_time_s":3723.9,"navigation_time_sample_timestamp_ns":"1000000000"}}}""";
+        UiStatus decoded = UiStatusProtocol.ParseStatus(Encoding.UTF8.GetBytes(valid));
+        PropertyInfo? timeProperty = typeof(UiStatus).GetProperty("NavigationTimeS");
+        Require(timeProperty is not null, "Navigation duration was not exposed.");
+        Require(timeProperty!.GetValue(decoded) is double value && value == 3723.9,
+            "Navigation duration was not parsed.");
+        Type? displayType = typeof(UiStatusProtocol).Assembly.GetType("ETS2AP.Ui.NavigationTimeDisplay");
+        Require(displayType is not null, "Navigation duration display state is unavailable.");
+        object display = Activator.CreateInstance(displayType!, nonPublic: true)!;
+        MethodInfo? setStatus = displayType!.GetMethod("SetStatus", BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo? render = displayType.GetMethod("Render", BindingFlags.Instance | BindingFlags.NonPublic);
+        Require(setStatus is not null && render is not null, "Navigation display methods are unavailable.");
+        void Set(UiStatus? item) => setStatus!.Invoke(display, new object?[] { item });
+        string? Render(ulong now) => (string?)render!.Invoke(display,
+            new object?[] { now, "{0:0}:{1:00}:{2:00}", CultureInfo.InvariantCulture });
+        UiStatus Decode(string json) => UiStatusProtocol.ParseStatus(Encoding.UTF8.GetBytes(json));
+
+        Set(decoded);
+        Require(Render(1_100_000_000) == "1:02:03", "Fresh navigation time was not formatted.");
+        Require(Render(1_200_000_000) == "1:02:03", "Local time must not count down navigation time.");
+        Require(Render(1_250_000_000) == "1:02:03", "A 250 ms sample must remain valid.");
+        Require(Render(1_250_000_001) is null, "An expired sample remained visible.");
+        Require(Render(1_500_000_000) is null,
+            "Non-status traffic must not keep old navigation data visible.");
+
+        string newer = valid.Replace("\"timestamp\":\"1100000000\"", "\"timestamp\":\"1210000000\"")
+            .Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":75")
+            .Replace("\"navigation_time_sample_timestamp_ns\":\"1000000000\"",
+                     "\"navigation_time_sample_timestamp_ns\":\"1200000000\"");
+        Set(Decode(newer));
+        Require(Render(1_260_000_000) == "0:01:15",
+            "An earlier sample's expiry cleared a newer fresh status.");
+        Set(null);
+        Require(Render(1_260_000_000) is null, "Disconnect did not clear navigation time.");
+
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":0")));
+        Require(Render(1_100_000_000) == "0:00:00", "Zero seconds must remain available.");
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":-0.0")));
+        Require(Render(1_100_000_000) == "0:00:00", "Negative zero must display as zero seconds.");
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":90061")));
+        Require(Render(1_100_000_000) == "25:01:01", "Durations over 24 hours were wrapped.");
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":1e308")));
+        Require(Render(1_100_000_000) is null, "An impractically long duration was not made unavailable.");
+        Set(Decode(valid.Replace("\"speed_mps\":10", "\"speed_mps\":null")));
+        Require(Render(1_100_000_000) == "1:02:03", "Navigation time incorrectly requires valid speed.");
+
+        string legacy = valid.Replace("\"version\":\"1.3\"", "\"version\":\"1.2\"")
+            .Replace(",\"navigation_time_s\":3723.9,\"navigation_time_sample_timestamp_ns\":\"1000000000\"", "");
+        Set(Decode(legacy));
+        Require(Render(1_100_000_000) is null, "A legacy message without navigation time must be unavailable.");
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":-1")));
+        Require(Render(1_100_000_000) is null, "A negative duration was displayed.");
+        Set(Decode(valid.Replace("\"navigation_time_s\":3723.9", "\"navigation_time_s\":\"bad\"")));
+        Require(Render(1_100_000_000) is null, "A nonnumeric duration was displayed.");
+        Set(Decode(valid.Replace("\"navigation_time_sample_timestamp_ns\":\"1000000000\"",
+                                 "\"navigation_time_sample_timestamp_ns\":\"bad\"")));
+        Require(Render(1_100_000_000) is null, "An invalid sample timestamp was displayed.");
+        foreach (string invalidSample in new[] { "null", "\"0\"", "\"01\"", "\"18446744073709551616\"" })
+        {
+            Set(Decode(valid.Replace("\"navigation_time_sample_timestamp_ns\":\"1000000000\"",
+                                     $"\"navigation_time_sample_timestamp_ns\":{invalidSample}")));
+            Require(Render(1_100_000_000) is null, "An invalid sample timestamp was displayed.");
+        }
+        Set(Decode(valid.Replace(",\"navigation_time_sample_timestamp_ns\":\"1000000000\"", "")));
+        Require(Render(1_100_000_000) is null, "A missing sample timestamp was displayed.");
+        Set(Decode(valid.Replace("\"navigation_time_sample_timestamp_ns\":\"1000000000\"",
+                                 "\"navigation_time_sample_timestamp_ns\":\"1200000000\"")));
+        Require(Render(1_300_000_000) is null, "A sample newer than its message was displayed.");
+        Set(Decode(valid.Replace("\"timestamp\":\"1100000000\"", "\"timestamp\":\"1400000000\"")
+                        .Replace("\"navigation_time_sample_timestamp_ns\":\"1000000000\"",
+                                 "\"navigation_time_sample_timestamp_ns\":\"1200000000\"")));
+        Require(Render(1_300_000_000) is null, "A message from the future was displayed.");
+        Require(Reject(valid.Replace("\"timestamp\":\"1100000000\"", "\"timestamp\":\"-1\"")),
+            "An invalid envelope timestamp was accepted.");
+    }
+
+    private static void CheckUiQpcNanoseconds()
+    {
+        long frequency = Stopwatch.Frequency;
+        long before = Stopwatch.GetTimestamp();
+        ulong observed = UiPipeClient.QpcNanosecondsValue();
+        long after = Stopwatch.GetTimestamp();
+        ulong lower = (ulong)decimal.Floor((decimal)before * 1_000_000_000m / frequency);
+        ulong upper = (ulong)decimal.Floor((decimal)after * 1_000_000_000m / frequency);
+        Require(observed >= lower && observed <= upper, "UI QPC nanoseconds do not share the Stopwatch clock.");
+    }
+
+    private static void CheckUiV13HelloAck()
+    {
+        foreach (string version in new[] { "1.3", "1.2", "1.1", "1.0" })
+        {
+            string ack = "{\"type\":\"hello_ack\",\"version\":\"" + version +
+                "\",\"id\":\"u-4\",\"timestamp\":\"125\",\"payload\":{\"selected_version\":\"" +
+                version + "\"}}";
+            bool accepted;
+            try { UiStatusProtocol.ValidateHelloAck(Encoding.UTF8.GetBytes(ack), "u-4"); accepted = true; }
+            catch (InvalidDataException) { accepted = false; }
+            Require(accepted, "A supported UI handshake version was rejected: " + version);
+        }
+    }
+
     private static void CheckUiV12HelloAck()
     {
         const string helloAck = "{\"type\":\"hello_ack\",\"version\":\"1.2\",\"id\":\"u-4\",\"timestamp\":\"125\",\"payload\":{\"selected_version\":\"1.2\"}}";
@@ -382,7 +489,7 @@ internal static class Program
                     new
                     {
                         name = "ETS2AP_DLL_V1.2.3-beta.1.zip",
-                        browser_download_url = "https://github.com/SpaceSquare640/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/v1.2.3-beta.1/ETS2AP_DLL_V1.2.3-beta.1.zip",
+                        browser_download_url = "https://github.com/KingsleyHK0323/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/v1.2.3-beta.1/ETS2AP_DLL_V1.2.3-beta.1.zip",
                         size = 2048,
                         digest
                     }
@@ -396,8 +503,17 @@ internal static class Program
 
         string missingDigest = json.Replace(digest, string.Empty, StringComparison.Ordinal);
         Require(RejectRelease(missingDigest), "An asset without a SHA-256 digest was accepted.");
-        string wrongHost = json.Replace("https://github.com/SpaceSquare640/", "https://attacker.example/SpaceSquare640/", StringComparison.Ordinal);
+        string wrongHost = json.Replace("https://github.com/KingsleyHK0323/", "https://attacker.example/SpaceSquare640/", StringComparison.Ordinal);
         Require(RejectRelease(wrongHost), "A release asset from an untrusted host was accepted.");
+        string wrongHostOnly = json.Replace("https://github.com/KingsleyHK0323/",
+            "https://attacker.example/KingsleyHK0323/", StringComparison.Ordinal);
+        Require(RejectRelease(wrongHostOnly),
+            "A release asset from an untrusted host with the expected repository path was accepted.");
+        string insecureScheme = json.Replace("https://github.com/KingsleyHK0323/",
+            "http://github.com/KingsleyHK0323/", StringComparison.Ordinal);
+        Require(RejectRelease(insecureScheme), "A release asset without HTTPS was accepted.");
+        string wrongRepository = json.Replace("https://github.com/KingsleyHK0323/", "https://github.com/UntrustedOwner/", StringComparison.Ordinal);
+        Require(RejectRelease(wrongRepository), "A release asset from an untrusted repository was accepted.");
         string mismatchedName = json.Replace("ETS2AP_DLL_V1.2.3-beta.1.zip", "ETS2AP_DLL_V9.9.9.zip", StringComparison.Ordinal);
         Require(RejectRelease(mismatchedName), "An asset name that does not match the release tag was accepted.");
     }
@@ -440,7 +556,7 @@ internal static class Program
                     new
                     {
                         name = "ETS2AP_DLL_V1.2.3-beta.1.zip",
-                        browser_download_url = "https://github.com/SpaceSquare640/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/v1.2.3-beta.1/ETS2AP_DLL_V1.2.3-beta.1.zip",
+                        browser_download_url = "https://github.com/KingsleyHK0323/Euro_Truck_Simulator_2_Auto_Pilot/releases/download/v1.2.3-beta.1/ETS2AP_DLL_V1.2.3-beta.1.zip",
                         size = archive.Length,
                         digest = "sha256:" + digest
                     }
@@ -670,6 +786,10 @@ internal static class Program
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
+            if (RequestCount == 1)
+                Require(request.RequestUri?.AbsoluteUri ==
+                    "https://api.github.com/repos/KingsleyHK0323/Euro_Truck_Simulator_2_Auto_Pilot/releases?per_page=30",
+                    "Connector metadata request targeted an unexpected repository.");
             HttpContent content = request.RequestUri?.Host == "api.github.com"
                 ? new StringContent(releaseJson, Encoding.UTF8, "application/json")
                 : new ByteArrayContent(archive);

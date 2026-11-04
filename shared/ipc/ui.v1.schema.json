@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "Edited by: OpenAI-Codex_Responsible: Source_Code",
+  "$comment": "Edited by: OpenAI-Codex_Responsible: Source_Code; OpenAI-Codex_Source_Code",
   "title": "ETS2AP UI IPC v1 message",
   "description": "First validate $defs/base, then check the major version, then validate the type-specific payload. Whole-schema validation is not version detection: a 2.0 message may also fail a payload rule.",
   "allOf": [
@@ -241,6 +241,17 @@
         },
         "navigation_distance_m": {
           "$ref": "#/$defs/nullableNonnegative"
+        },
+        "navigation_time_s": {
+          "$ref": "#/$defs/nullableNonnegative",
+          "description": "Optional v1.3 navigation duration in seconds; zero is valid."
+        },
+        "navigation_time_sample_timestamp_ns": {
+          "anyOf": [
+            { "allOf": [ { "$ref": "#/$defs/uint64Decimal" }, { "not": { "const": "0" } } ] },
+            { "type": "null" }
+          ],
+          "description": "Optional v1.3 nonzero same-boot QPC timestamp of the telemetry snapshot."
         },
         "telemetry_age_s": {
           "$ref": "#/$defs/nullableNonnegative",

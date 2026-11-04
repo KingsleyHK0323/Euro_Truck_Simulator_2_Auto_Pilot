@@ -11,6 +11,10 @@ This directory contains the Windows x64 telemetry writer, production SCS semanti
 
 The production input device fails closed to neutral. It accepts only finite, in-range commands stamped by the same monotonic clock and returns neutral when a command is disengaged or older than 100 ms. Its independent steering amplitude cap is fixed at 0.30; a speed-dependent curve remains unimplemented and must be calibrated before release. The Python Control.v1 client verifies the native process image and user SID, starts each connection with a neutral sequence-1 handshake, validates status frames, and fails closed on incomplete frames or protocol errors. Native telemetry freshness and speed-limit availability are connected, but local UI authorization remains false. The physical-input monitor reports unhealthy until keyboard/XInput/device coverage is validated; unclassified HID devices also keep it unhealthy. Therefore engage remains denied and this transport does not enable automatic driving. Support for the semantic mix names depends on the player's ETS2 controls profile and remains **[VERIFY]** in game. The WPF Engage action remains disabled.
 
+An isolated helper in `input_core/include/ets2ap/input/steering_curve.h` validates explicitly supplied speed/cap points and interpolates only within their range. It contains no vehicle calibration and is not connected to production control, telemetry, safety gates, or the native ABI. Invalid curves, speeds, arithmetic results, or steering requests return no value. Any future integration must treat an absent result as blocked/neutral and enforce the stricter of the curve result and the existing native 0.30 hard cap; the helper does not replace that cap. Test values are synthetic, not calibration evidence.
+This generic mathematical helper can return values above 0.30 and is not itself an independent safety cap. Any future control integration must use the lower of its result and the independently approved native hard cap in force at that time, fail closed for invalid or unknown results, and undergo separate ETS2 in-game validation and safety review.
+The caller must provide a valid, stable span and independently establish that the speed source is trusted and fresh; the helper does not inspect telemetry timestamps.
+
 The wire contract is [telemetry.v1.md](../shared/ipc/telemetry.v1.md). The vendored SDK headers are under `../third_party/scs_sdk/include`; they are not modified by this build.
 
 ## Build and test
@@ -28,5 +32,9 @@ Use the corresponding Visual Studio 18 generator for VS 2026. To check Debug, bu
 ## Test framework
 
 `ETS2AP_TEST(Name)` registers a test. Use `CHECK`, `CHECK_EQ`, `CHECK_NE`, and `CHECK_NEAR` for nonfatal assertions. `ETS2AP_TEST_MAIN()` supplies the runner. Test executables accept `--list` and `--filter=<substring>`; the final line reports tests, checks, and failures. A run fails when an assertion or test throws, or when no tests or checks run. CTest runs the framework selftest, telemetry core tests, mapping tests, plugin tests, and Control.v1 input-core tests separately.
+
+`steering_curve_compile_tests.cpp` is compiled as part of `input_core_tests`; its `static_assert` checks run at compile time and do not establish runtime or in-game behavior.
+
+<!-- Edited by: OpenAI-Codex_Source_Code -->
 
 <!-- Edited by: OpenAI-Codex_Responsible: Source_Code -->

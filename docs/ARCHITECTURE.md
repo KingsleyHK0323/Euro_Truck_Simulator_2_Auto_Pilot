@@ -40,6 +40,8 @@ The [shared contract overview](../shared/README.md) defines versioning and commo
 - Driver override always wins; any manual input disengages autopilot.
 - Control commands are rate- and range-limited in Python and again in `native/input`.
 - `native/input` independently enforces the command timeout, manual-override latch, and a fixed steering amplitude cap of 0.30. A speed-dependent steering curve is not implemented and is a release blocker until calibrated.
+- An isolated curve-validation helper exists but is not integrated or calibrated. Future integration must keep the existing 0.30 hard cap and block or neutralize control if the curve or speed is invalid.
+- The generic helper can return values above 0.30. Any future integration must take the lower of its result and the independent hard cap approved at that time, and requires separate ETS2 validation and safety review.
 
 ## Cross-cutting
 - Platform: Windows 10/11 x64 only.

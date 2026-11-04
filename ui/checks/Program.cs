@@ -50,6 +50,7 @@ internal static class Program
             ("Preferences parsing and round trip", CheckPreferences),
             ("Navigation state and shortcuts", CheckNavigation),
             ("UI status protocol", CheckStatusProtocol),
+            ("UI status freshness", CheckUiStatusFreshness),
             ("UI navigation time and freshness", CheckNavigationTimeStatus),
             ("UI QPC nanosecond clock", CheckUiQpcNanoseconds),
             ("UI navigation version compatibility", CheckUiV13HelloAck),
@@ -249,6 +250,35 @@ internal static class Program
                 FrontClear: null },
             "UI v1.1 perception safety state was not preserved.");
         Require(withPerception.Control is null, "UI v1.1 must omit native control status.");
+    }
+
+    private static void CheckUiStatusFreshness()
+    {
+        const string template = """{"type":"status","version":"VERSION","id":"p-2","timestamp":"STAMP","payload":{"state":"ready","error_code":null,"state_revision":0,"telemetry":{"speed_mps":10,"speed_limit_mps":20,"navigation_distance_m":1250,"telemetry_age_s":0.1}}}""";
+        UiStatus Decode(string version, string timestamp) =>
+            UiStatusProtocol.ParseStatus(Encoding.UTF8.GetBytes(
+                template.Replace("VERSION", version).Replace("STAMP", timestamp)));
+
+        foreach (string version in new[] { "1.0", "1.1", "1.2", "1.3" })
+        {
+            UiStatus status = Decode(version, "1000000000");
+            Require(UiStatusFreshness.IsFresh(status, 1_000_000_000),
+                "A fresh status was rejected for UI version " + version);
+            Require(UiStatusFreshness.IsFresh(status, 2_000_000_000),
+                "A status exactly one second old must remain available.");
+            Require(!UiStatusFreshness.IsFresh(status, 2_000_000_001),
+                "A status older than one second remained available.");
+            Require(!UiStatusFreshness.IsFresh(status, 999_999_999),
+                "A status from the future remained available.");
+        }
+        Require(!UiStatusFreshness.IsFresh(Decode("1.3", "0"), 1_000_000_000),
+            "A zero status timestamp remained available.");
+        Require(!UiStatusFreshness.IsFresh(null, 1_000_000_000),
+            "A disconnected status remained available.");
+        Require(UiStatusFreshness.IsFresh(Decode("1.3", "18446744073709551615"), ulong.MaxValue),
+            "A valid upper-bound timestamp overflowed.");
+        Require(Reject(template.Replace("VERSION", "1.3").Replace("STAMP", "-1")),
+            "An invalid status envelope timestamp was accepted.");
     }
 
     private static void CheckNavigationTimeStatus()

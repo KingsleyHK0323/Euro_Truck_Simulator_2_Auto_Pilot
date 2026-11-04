@@ -42,11 +42,13 @@ public partial class MainWindow : Window
     private string? _lastLoggedState;
     private string? _lastLoggedErrorCode;
     private UiStatus? _latestStatus;
+    private bool _statusExpired;
 
     public MainWindow()
     {
         InitializeComponent();
         _navigationExpiryTimer.Tick += NavigationExpiryTimer_Tick;
+        _navigationExpiryTimer.Tick += StatusExpiryTimer_Tick;
         _navigationExpiryTimer.Start();
         ActivityList.ItemsSource = _activityEntries;
         RecentActivityList.ItemsSource = _recentActivityEntries;
@@ -124,6 +126,7 @@ public partial class MainWindow : Window
         _isClosing = true;
         _navigationExpiryTimer.Stop();
         _navigationExpiryTimer.Tick -= NavigationExpiryTimer_Tick;
+        _navigationExpiryTimer.Tick -= StatusExpiryTimer_Tick;
         _perceptionCapture?.Dispose();
         _perceptionCapture = null;
         _serviceCancellation.Cancel();
@@ -245,6 +248,25 @@ public partial class MainWindow : Window
 
     private string BuildStatusSnapshot()
     {
+        if (_latestStatus is UiStatus currentStatus && !_statusExpired && !IsStatusFresh(currentStatus))
+            ApplyExpiredStatus();
+        if (_statusExpired)
+            return string.Join(Environment.NewLine, new[]
+            {
+                $"{Strings.Connection}: {ConnectionTitle.Text}",
+                $"{Strings.Status}: {ConnectionDetail.Text}",
+                $"{Strings.AutomationState}: {AutomationStateValue.Text}",
+                $"{Strings.TelemetryAge}: {Strings.NotProvided}",
+                $"{Strings.Speed}: {SpeedValue.Text} {Strings.Kmh}",
+                $"{Strings.SpeedLimit}: {SpeedLimitValue.Text} {Strings.Kmh}",
+                $"{Strings.DistanceRemaining}: {DistanceValue.Text}",
+                $"{Strings.FrameCaptureLabel}: {FrameCaptureValue.Text}",
+                $"{Strings.GameFocusLabel}: {GameFocusValue.Text}",
+                $"{Strings.InputMonitoringLabel}: {InputMonitoringValue.Text}",
+                $"{Strings.ManualInputLabel}: {ManualInputValue.Text}",
+                $"{Strings.LaneConfidenceLabel}: {LaneConfidenceValue.Text}",
+                $"{Strings.FrontObstacleLabel}: {FrontObstacleValue.Text}"
+            });
         UiStatus? status = _latestStatus;
         string age = status?.AgeS is double seconds
             ? string.Format(CultureInfo.CurrentCulture, Strings.TelemetryAgeFormat, seconds)
@@ -410,6 +432,15 @@ public partial class MainWindow : Window
 
     private void ApplyStatus(UiStatus? status)
     {
+        if (status is not null && !IsStatusFresh(status))
+        {
+            _latestStatus = status;
+            _navigationTime.SetStatus(status);
+            RefreshNavigationTime();
+            ApplyExpiredStatus();
+            return;
+        }
+        _statusExpired = false;
         _latestStatus = status;
         _navigationTime.SetStatus(status);
         RefreshNavigationTime();
@@ -457,8 +488,53 @@ public partial class MainWindow : Window
 
     private void NavigationExpiryTimer_Tick(object? sender, EventArgs e) => RefreshNavigationTime();
 
+    private void StatusExpiryTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_latestStatus is UiStatus status && !_statusExpired && !IsStatusFresh(status))
+            ApplyExpiredStatus();
+    }
+
+    private static bool IsStatusFresh(UiStatus status)
+    {
+        try
+        {
+            return UiStatusFreshness.IsFresh(status, UiPipeClient.QpcNanosecondsValue());
+        }
+        catch (Exception error) when (error is OverflowException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private void ApplyExpiredStatus()
+    {
+        ConnectionTitle.Text = Strings.ServiceConnected;
+        if (_statusExpired) return;
+        _statusExpired = true;
+        if (!_hasObservedServiceConnection || !_serviceConnected)
+            AddActivity(Strings.ActivityServiceConnected);
+        _hasObservedServiceConnection = true;
+        _serviceConnected = true;
+        if (_lastTelemetryFresh != false)
+            AddActivity(Strings.ActivityTelemetryUnavailable);
+        _lastTelemetryFresh = false;
+        AnnounceActivityUpdate();
+        UpdateConnectionDetail(Strings.ErrorStaleStatus);
+        SpeedValue.Text = SpeedLimitValue.Text = DistanceValue.Text = "--";
+        EtaValue.Text = Strings.Unavailable;
+        ApplyPerception(null);
+        GameCheck.Text = ConnectorCheck.Text = Strings.Pending;
+        ControlCheck.Text = Strings.NotProvided;
+        AutomationStateValue.Text = Strings.Unavailable;
+    }
+
     private void RefreshNavigationTime()
     {
+        if (_statusExpired)
+        {
+            EtaValue.Text = Strings.Unavailable;
+            return;
+        }
         try
         {
             EtaValue.Text = _navigationTime.Render(UiPipeClient.QpcNanosecondsValue(),

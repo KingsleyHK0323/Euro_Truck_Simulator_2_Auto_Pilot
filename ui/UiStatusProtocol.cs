@@ -244,3 +244,12 @@ internal sealed class NavigationTimeDisplay
         return formatted.Length <= MaximumDisplayCharacters ? formatted : null;
     }
 }
+
+internal static class UiStatusFreshness
+{
+    private const ulong MaximumStatusAgeNs = 1_000_000_000;
+
+    internal static bool IsFresh(UiStatus? status, ulong nowNs) =>
+        status is not null && status.TimestampNs != 0 && status.TimestampNs <= nowNs &&
+        nowNs - status.TimestampNs <= MaximumStatusAgeNs;
+}

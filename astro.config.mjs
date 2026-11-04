@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const registry = JSON.parse(readFileSync(new URL("./src/i18n/locales.json", import.meta.url), "utf8"));
 
 export default defineConfig({
-  site: "https://spacesquare640.github.io",
+  site: "https://kingsleyhk0323.github.io",
   base: "/Euro_Truck_Simulator_2_Auto_Pilot/",
   output: "static",
   trailingSlash: "always",

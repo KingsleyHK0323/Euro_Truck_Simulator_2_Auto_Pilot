@@ -5,6 +5,7 @@ All notable changes to this project are documented here and published on the pro
 ## [Unreleased]
 
 ### Added
+- Added a v1.3 navigation time remaining display with original-snapshot freshness checks and backward-compatible status negotiation. (OpenAI-Codex_Source_Code; Edited by: OpenAI-Codex_Responsible: Source_Code)
 - Added Physical Input v1: WPF tracks keyboard and mouse held state per device across focus changes, then sends sequenced Raw Input frames to a native pipe that authenticates the UI process and same-user SID, expires reports after 250 ms, and fails closed on invalid data or disconnect; physical-device coverage remains unvalidated and engagement stays blocked. (OpenAI-Codex_Responsible: Source_Code)
 - Added a native keyboard and XInput manual-input monitor on the ControlHost scheduler with an injectable test seam; unknown HID devices and unvalidated device coverage keep the safety gate unhealthy. (OpenAI-Codex; OpenAI-Codex_Responsible: Source_Code)
 - Added a Windows GitHub Actions smoke test for connector installation, backup, idempotence, and rollback in a synthetic ETS2 folder. (OpenAI-Codex_Responsible: Source_Code)
@@ -17,6 +18,7 @@ All notable changes to this project are documented here and published on the pro
 - Added Control.v1.1 safety-claim packets and server capability negotiation; the client will not engage with a legacy server, and native engagement stays blocked while its local input-monitor gate is unavailable. (OpenAI-Codex_Responsible: Source_Code)
 
 ### Changed
+- Updated remaining GitHub account references from SpaceSquare640 to KingsleyHK0323 while preserving repository names and URL suffixes. (OpenAI-Codex; Edited by: OpenAI-Codex_Responsible: Source_Code; OpenAI-Codex_Source_Code)
 - Native and WPF named-pipe peer-image checks now canonicalize with the normalized NT volume path, which remains available when DOS volume-name lookup is denied; exact image-path and same-user SID checks remain required. (OpenAI-Codex_Responsible: Source_Code)
 - The Physical Input pipe retains a current-user-only ACL and rejects remote clients; exact peer image and same-user SID authentication remain required. (OpenAI-Codex_Responsible: Source_Code)
 - The native keyboard monitor now treats a zero-only `GetAsyncKeyState` scan as indeterminate and fail-closed; only an observed high-order key-down bit establishes current keyboard activity. (OpenAI-Codex_Responsible: Source_Code)

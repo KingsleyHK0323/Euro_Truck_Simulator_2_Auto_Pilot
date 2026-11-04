@@ -5,6 +5,7 @@ All notable changes to this project are documented here and published on the pro
 ## [Unreleased]
 
 ### Added
+- Added an isolated steering-curve validation and interpolation helper with compile-time checks; no calibrated curve or production control integration is included. (OpenAI-Codex_Source_Code; Edited by: OpenAI-Codex_Responsible: Source_Code)
 - Added UI status-message expiry so stale observations are cleared independently of other pipe traffic while the service connection remains distinct. (OpenAI-Codex_Source_Code; Edited by: OpenAI-Codex_Responsible: Source_Code)
 - Added a v1.3 navigation time remaining display with original-snapshot freshness checks and backward-compatible status negotiation. (OpenAI-Codex_Source_Code; Edited by: OpenAI-Codex_Responsible: Source_Code)
 - Added Physical Input v1: WPF tracks keyboard and mouse held state per device across focus changes, then sends sequenced Raw Input frames to a native pipe that authenticates the UI process and same-user SID, expires reports after 250 ms, and fails closed on invalid data or disconnect; physical-device coverage remains unvalidated and engagement stays blocked. (OpenAI-Codex_Responsible: Source_Code)

@@ -10,9 +10,9 @@ interface Props {
 const { locale } = Astro.props;
 
 const sections = [
-  { title: t("docs.overviewHeading", locale), body: t("docs.overviewBody", locale), state: t("label.planned", locale) },
+  { title: t("docs.overviewHeading", locale), body: t("docs.overviewBody", locale), state: t("label.inDevelopment", locale) },
   { title: t("docs.requirementsHeading", locale), body: t("docs.requirementsBody", locale), state: t("label.planned", locale) },
-  { title: t("docs.installHeading", locale), body: t("docs.installBody", locale), state: t("label.notAvailable", locale) },
+  { title: t("docs.installHeading", locale), body: t("docs.installBody", locale), state: t("label.inDevelopment", locale) },
   { title: t("docs.troubleshootingHeading", locale), body: t("docs.troubleshootingBody", locale), state: t("label.planned", locale) },
 ];
 ---
@@ -30,6 +30,13 @@ const sections = [
         </li>
       ))}
     </ol>
+  </section>
+
+  <!-- Edited by: OpenAI-Codex_Responsible: Website -->
+  <section class="content-section" aria-labelledby="docs-status-freshness-heading">
+    <h2 class="section-heading" id="docs-status-freshness-heading">{t("docs.statusFreshnessHeading", locale)}</h2>
+    <p>{t("docs.statusFreshnessBody", locale)}</p>
+    <p>{t("docs.statusFreshnessNote", locale)}</p>
   </section>
 
   <section class="content-section" aria-labelledby="docs-more-heading">
